@@ -1,0 +1,584 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1, maximum-scale=1" />
+    <title>Area51</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+    <script type="module">
+      import createGlobe from 'https://cdn.skypack.dev/cobe';
+      window.createGlobe = createGlobe;
+    </script>
+
+    <style>
+      body {
+        font-family: "JetBrains Mono", Helvetica, sans-serif;
+        color: #ebebea;
+        background: #222;
+        margin: 0;
+        overflow: hidden;
+        -webkit-font-smoothing: antialiased;
+      }
+      a { color: inherit; text-decoration: none; }
+      .page-container { position: relative; height: 100vh; width: 100vw; }
+      .corner-element { position: absolute; z-index: 10; }
+      .top-left { top: 60px; left: 60px; }
+      .top-right { top: 60px; right: 60px; display: flex; gap: 10px; }
+      .bottom-left { bottom: 60px; left: 60px; cursor: pointer; }
+      .logo { max-width: 50px; height: 50px; }
+      .top-right a {
+        font-size: 10px; font-weight: 500; letter-spacing: 0.3px;
+        transition: color 0.3s ease;
+      }
+      .top-right a:hover,
+      .top-right a.active-link {
+        color: #9D96F3;
+      }
+      .bio {
+        font-size: 14px;
+        font-weight: 500;
+        margin: 0;
+        /* NEW: Limit to 3 lines and add ellipsis */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 3; /* Limit to 3 lines */
+        -webkit-box-orient: vertical;
+        line-height: 1.4em; /* Adjust based on your font size for consistent line height */
+        max-height: 4.2em; /* 3 lines * 1.4em line-height = 4.2em max height */
+      }
+      #content {
+        position: absolute;
+        width: 600px;
+        height: 600px;
+        max-width: 90vw;
+        max-height: 90vh;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin: auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        z-index: 5;
+      }
+      #cobe {
+        width: 100%;
+        height: 100%;
+        cursor: grab;
+      }
+      #cobe:active { cursor: grabbing; }
+      .login-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 20px;
+      }
+      .login-form {
+        width: 100%;
+        max-width: 300px;
+        margin-top: 2em;
+      }
+      .form-group { margin-bottom: 1.5em; }
+      .form-group label {
+        display: block;
+        margin-bottom: 0.5em;
+      }
+      .form-group input {
+        width: 100%;
+        padding: 0.5em;
+        font-size: 14px;
+        background-color: #333;
+        border: 1px solid #555;
+        color: #ebebea;
+      }
+      .login-button {
+        width: 100%;
+        padding: 0.75em;
+        background-color: #5a4fd0;
+        color: #222;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+      }
+      .login-button:hover {
+        background-color: #e0b700;
+      }
+      .back-link { margin-top: 1em; }
+
+      /* Pong specific styles */
+      #pongCanvas {
+        background: #222;
+        border: 2px solid white;
+      }
+
+      /* Bug Banner Style */
+      #error-banner {
+        position: fixed;
+        top: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: auto;
+        max-width: 90%;
+        background-color: #D92D20;
+        color: white;
+        padding: 12px 24px;
+        z-index: 9999;
+        display: none;
+        font-size: 14px;
+        font-weight: 500;
+        border-radius: 8px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+      }
+
+      /* Example for brand-2-background if needed */
+      .page-container.brand-2-background {
+        background-color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="error-banner">Error: Houston, we have a problem 🐛</div>
+
+    <div class="page-container">
+      <div class="corner-element top-left">
+        <img src="https://cdn.glitch.global/9d086b22-c6c8-44c2-b8cc-aabb00ea8a30/logo.png?v=1724728425599" alt="Logo" class="logo"/>
+      </div>
+      <nav class="corner-element top-right">
+        <a class="link-home" href="#home">home</a>
+        <a class="link-page1" href="#page1">page 01</a>
+        <a class="link-page2" href="#page2">page 02</a>
+        <a class="link-page3" href="#page3">page 03</a>
+        <a class="link-brand02" href="#brand02">brand 02</a>
+        <a class="link-bug" href="#bug">bug</a>
+        <a class="link-help" href="https://intercom.help/intercondiment01/en">help</a>
+        <a class="link-login" href="#login">login</a>
+        <a class="link-logout" href="#" onclick="logout()">logout</a>
+      </nav>
+      <div class="corner-element bottom-left">
+        <p class="bio"></p>
+      </div>
+      <div id="content"></div>
+    </div>
+
+    <script>
+      let globe = null;
+      let pongAnimationFrameId = null;
+      let bugInterval = null;
+
+      let canvas, ctx;
+      let player1 = { x: 10, y: 150, width: 10, height: 100, dy: 0, score: 0 };
+      let player2 = { x: 580, y: 150, width: 10, height: 100, dy: 0, score: 0 };
+      let ball = { x: 300, y: 200, radius: 7, dx: 5, dy: 5 };
+      const paddleSpeed = 5;
+      const pressedKeys = {};
+
+      document.addEventListener("DOMContentLoaded", function () {
+        updateLoginUI();
+        document.addEventListener("submit", function (event) {
+          const loginForm = event.target.closest(".login-form");
+          if (loginForm) {
+            event.preventDefault();
+            handleLogin();
+          }
+        });
+        loadPage();
+      });
+
+      window.addEventListener("hashchange", () => loadPage());
+
+      function loadPage(pageFromHash) {
+        const page = pageFromHash || window.location.hash.slice(1) || "home";
+
+        const content = document.getElementById("content");
+        const bioText = document.querySelector(".bottom-left .bio");
+        const links = document.querySelectorAll(".top-right a");
+        const errorBanner = document.getElementById("error-banner");
+        const pageContainer = document.querySelector(".page-container");
+
+        links.forEach(link => link.classList.remove("active-link"));
+        if (globe) {
+            globe.destroy();
+            globe = null;
+        }
+        if (pongAnimationFrameId) {
+            cancelAnimationFrame(pongAnimationFrameId);
+            pongAnimationFrameId = null;
+            document.removeEventListener('keydown', handlePongKeyDown);
+            document.removeEventListener('keyup', handlePongKeyUp);
+        }
+        if (bugInterval) {
+            clearInterval(bugInterval);
+            bugInterval = null;
+        }
+
+        errorBanner.style.display = 'none';
+        pageContainer.classList.remove('brand-2-background');
+        content.innerHTML = '';
+        bioText.style.display = 'none';
+        document.querySelector('.bottom-left').onclick = null;
+
+        const activeLink = document.querySelector(`.link-${page.split(' ')[0]}`);
+        if (activeLink) activeLink.classList.add('active-link');
+
+        switch (page) {
+          case "home":
+          case "page1":
+          case "page2":
+            content.innerHTML = `<canvas id="cobe"></canvas>`;
+            bioText.style.display = 'block';
+            document.querySelector('.bottom-left').onclick = setRandomFact;
+            initializeGlobe();
+            setRandomFact();
+            break;
+          case "page3":
+            content.innerHTML = '<canvas id="pongCanvas" width="600" height="400"></canvas>';
+            initializePong();
+            break;
+          case "login":
+            content.innerHTML = `
+              <div class="login-container">
+                <form class="login-form">
+                  <div class="form-group">
+                    <label for="username">Email</label>
+                    <input type="email" id="username" required />
+                  </div>
+                  <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required />
+                  </div>
+                  <button type="submit" class="login-button">Login</button>
+                </form>
+                <div class="back-link">
+                  <a href="#home">Back to Home</a>
+                </div>
+              </div>`;
+            bioText.textContent = "Login to Area51";
+            bioText.style.display = 'block';
+            break;
+          case "brand02":
+            pageContainer.classList.add('brand-2-background');
+            break;
+          case "bug":
+            errorBanner.style.display = 'block';
+            setTimeout(() => { errorBanner.style.display = 'none'; }, 5000);
+
+            console.error("Uncaught TypeError: Cannot read properties of null (reading 'session')");
+            let errorCount = 0;
+            bugInterval = setInterval(() => {
+                if (errorCount < 5) {
+                    console.warn(`[API] Failed to load resource: net::ERR_CONNECTION_REFUSED /api/v2/users/me`);
+                    errorCount++;
+                } else {
+                    console.log("Re-establishing connection...");
+                    clearInterval(bugInterval);
+                    bugInterval = null;
+                }
+            }, 800);
+            break;
+          default:
+            content.innerHTML = `<p>This is the ${page} page.</p>`;
+            bioText.textContent = `Content for ${page}`;
+            bioText.style.display = 'block';
+        }
+      }
+
+      function initializeGlobe() {
+        const canvas = document.getElementById("cobe");
+        if (!canvas || !window.createGlobe) return;
+        let phi = 5.04;
+        let theta = 0.09;
+        const width = canvas.offsetWidth * 2;
+        const height = canvas.offsetHeight * 2;
+        canvas.width = width;
+        canvas.height = height;
+
+        globe = window.createGlobe(canvas, {
+          devicePixelRatio: 2,
+          width,
+          height,
+          phi,
+          theta,
+          dark: 1,
+          diffuse: 2.75,
+          mapSamples: 33000,
+          mapBrightness: 2.5,
+          baseColor: [0.235, 0.235, 0.235],
+          markerColor: [0.345, 0.306, 0.780],
+          markerSize: 0.05,
+          glowColor: [0.5, 0.5, 0.5],
+          opacity: 0.9,
+          markers: [
+            { location: [37.78, -122.40], size: 0.05 },
+            { location: [51.52, -0.10], size: 0.05 },
+            { location: [41.88, -87.66], size: 0.05 },
+            { location: [53.34, -6.26], size: 0.05 },
+            { location: [-33.88, 151.21], size: 0.05 },
+          ],
+          onRender: (state) => {
+            state.phi = phi;
+            state.theta = theta;
+          },
+        });
+
+        let frameId = null;
+        const autoRotate = () => {
+          theta += 0.001;
+          frameId = requestAnimationFrame(autoRotate);
+        };
+
+        const onPointerMove = (e) => {
+          const currentX = e.clientX || e.touches[0].clientX;
+          const currentY = e.clientY || e.touches[0].clientY;
+          const deltaX = currentX - lastX;
+          const deltaY = currentY - lastY;
+          lastX = currentX;
+          lastY = currentY;
+          const horizontalSensitivity = 4;
+          const verticalSensitivity = 4;
+          theta += deltaX / canvas.width * horizontalSensitivity;
+          phi -= deltaY / canvas.height * verticalSensitivity;
+          phi = Math.max(0.1, Math.min(Math.PI - 0.1, phi));
+        };
+
+        const onPointerUp = () => {
+          document.removeEventListener('mousemove', onPointerMove);
+          document.removeEventListener('touchmove', onPointerMove);
+          document.removeEventListener('mouseup', onPointerUp);
+          document.removeEventListener('touchend', onPointerUp);
+          autoRotate();
+        };
+
+        const onPointerDown = (e) => {
+          if (e.type === 'touchstart') e.preventDefault();
+          cancelAnimationFrame(frameId);
+          lastX = e.clientX || e.touches[0].clientX;
+          lastY = e.clientY || e.touches[0].clientY;
+          document.addEventListener('mousemove', onPointerMove);
+          document.addEventListener('touchmove', onPointerMove, { passive: false });
+          document.addEventListener('mouseup', onPointerUp);
+          document.addEventListener('touchend', onPointerUp);
+        };
+
+        const onWheel = (e) => {
+          cancelAnimationFrame(frameId);
+          e.preventDefault();
+          const rotationFactor = 0.005;
+          theta += e.deltaY * rotationFactor;
+          clearTimeout(canvas.wheelTimeout);
+          canvas.wheelTimeout = setTimeout(() => autoRotate(), 500);
+        };
+
+        canvas.addEventListener('mousedown', onPointerDown);
+        canvas.addEventListener('touchstart', onPointerDown, { passive: false });
+        canvas.addEventListener('wheel', onWheel, { passive: false });
+        autoRotate();
+      }
+
+      function handleLogin() {
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+
+        const validUsers = [
+          { email: "fadim.tonde+user001@intercom.io", name: "Mayor Nays", password: "Password123" },
+          { email: "fadim.tonde+user002@intercom.io", name: "Nat Ella", password: "Password123" },
+          { email: "fadim.tonde+user003@intercom.io", name: "Sam Balle", password: "Password123" },
+          { email: "fadim.tonde+user004@intercom.io", name: "Ollie Voil", password: "Password123" },
+        ];
+
+        const user = validUsers.find((u) => u.email === username && u.password === password);
+
+        if (user) {
+          const userData = {
+            app_id: "bd8xo3jo",
+            name: user.name,
+            email: user.email,
+            created_at: Math.floor(Date.now() / 1000),
+          };
+          localStorage.setItem("user", JSON.stringify(userData));
+          Intercom("boot", userData);
+          alert("Login successful! You are now recognized in Intercom as a user.");
+          loadPage("home");
+          updateLoginUI();
+        } else {
+          alert("Invalid credentials. Please try again.");
+        }
+      }
+
+      function logout() {
+        localStorage.removeItem("user");
+        Intercom("shutdown");
+        Intercom("boot", { app_id: "bd8xo3jo" });
+        alert("Logged out. You are now recognized in Intercom as a visitor.");
+        loadPage("home");
+        updateLoginUI();
+      }
+
+      function updateLoginUI() {
+        const isLoggedIn = localStorage.getItem("user") !== null;
+        const loginLink = document.querySelector(".link-login");
+        const logoutLink = document.querySelector(".link-logout");
+
+        if (loginLink && logoutLink) {
+          loginLink.style.display = isLoggedIn ? "none" : "inline-block";
+          logoutLink.style.display = isLoggedIn ? "inline-block" : "none";
+        }
+      }
+
+      function initializeIntercom() {
+        const userData = JSON.parse(localStorage.getItem("user"));
+        if (userData) {
+          Intercom("boot", userData);
+        } else {
+          Intercom("boot", { app_id: "bd8xo3jo" });
+        }
+      }
+
+      // --- Random Fact for Bio Text ---
+      // Reverted to client-side facts for now as the external API was causing issues.
+      // You can replace these with your own space facts or find another reliable API.
+      const facts = [
+        "The universe is constantly expanding.",
+        "A light-year is the distance light travels in one Earth year.",
+        "There are more stars in the universe than grains of sand on all the beaches on Earth.",
+        "The Sun is an average-sized star.",
+        "Mars is known as the 'Red Planet'.",
+        "Jupiter is the largest planet in our solar system.",
+        "Saturn has the most spectacular ring system.",
+        "Our galaxy, the Milky Way, is a spiral galaxy."
+      ];
+      function setRandomFact() {
+        const bioText = document.querySelector(".bottom-left .bio");
+        const randomIndex = Math.floor(Math.random() * facts.length);
+        bioText.textContent = facts[randomIndex];
+      }
+
+      // --- Pong Game Logic (remains unchanged) ---
+      function initializePong() {
+        canvas = document.getElementById('pongCanvas');
+        if (!canvas) return;
+        ctx = canvas.getContext('2d');
+        resetBall();
+        document.addEventListener('keydown', handlePongKeyDown);
+        document.addEventListener('keyup', handlePongKeyUp);
+        gameLoop();
+      }
+
+      function handlePongKeyDown(e) {
+        pressedKeys[e.key] = true;
+      }
+
+      function handlePongKeyUp(e) {
+        pressedKeys[e.key] = false;
+      }
+
+      function update() {
+        if (pressedKeys['w']) { player1.dy = -paddleSpeed; }
+        else if (pressedKeys['s']) { player1.dy = paddleSpeed; }
+        else { player1.dy = 0; }
+        player1.y += player1.dy;
+        if (player1.y < 0) player1.y = 0;
+        if (player1.y + player1.height > canvas.height) player1.y = canvas.height - player1.height;
+
+        if (ball.dx > 0) {
+            if (player2.y + player2.height / 2 < ball.y) { player2.y += paddleSpeed * 0.9; }
+            else if (player2.y + player2.height / 2 > ball.y) { player2.y -= paddleSpeed * 0.9; }
+        }
+        if (player2.y < 0) player2.y = 0;
+        if (player2.y + player2.height > canvas.height) player2.y = canvas.height - player2.height;
+
+        ball.x += ball.dx;
+        ball.y += ball.dy;
+
+        if (ball.y + ball.radius > canvas.height || ball.y - ball.radius < 0) { ball.dy *= -1; }
+
+        if (ball.x - ball.radius < player1.x + player1.width && ball.y + ball.radius > player1.y && ball.y - ball.radius < player1.y + player1.height && ball.dx < 0) { ball.dx *= -1; }
+        if (ball.x + ball.radius > player2.x && ball.y + ball.radius > player2.y && ball.y - ball.radius < player2.y + player2.height && ball.dx > 0) { ball.dx *= -1; }
+
+        if (ball.x - ball.radius < 0) { player2.score++; resetBall(); }
+        else if (ball.x + ball.radius > canvas.width) { player1.score++; resetBall(); }
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'white';
+        ctx.fillRect(player1.x, player1.y, player1.width, player1.height);
+        ctx.fillRect(player2.x, player2.y, player2.width, player2.height);
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.font = '30px "JetBrains Mono"';
+        ctx.fillText(player1.score, canvas.width / 4, 50);
+        ctx.fillText(player2.score, canvas.width * 3 / 4, 50);
+        ctx.beginPath();
+        ctx.setLineDash([10, 10]);
+        ctx.moveTo(canvas.width / 2, 0);
+        ctx.lineTo(canvas.width / 2, canvas.height);
+        ctx.strokeStyle = 'white';
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      function resetBall() {
+        ball.x = canvas.width / 2;
+        ball.y = canvas.height / 2;
+        ball.dx = (Math.random() > 0.5 ? 1 : -1) * 5;
+        ball.dy = (Math.random() > 0.5 ? 1 : -1) * 5;
+      }
+
+      function gameLoop() {
+        update();
+        draw();
+        pongAnimationFrameId = requestAnimationFrame(gameLoop);
+      }
+      // --- End Pong Game Logic ---
+
+      // Initialize Intercom when page loads
+      window.addEventListener("load", initializeIntercom);
+
+    </script>
+
+    <script>
+      // We pre-filled your app ID in the widget URL: 'https://widget.intercom.io/widget/bd8xo3jo'
+      (function () {
+        var w = window;
+        var ic = w.Intercom;
+        if (typeof ic === "function") {
+          ic("reattach_activator");
+          ic("update", w.intercomSettings);
+        } else {
+          var d = document;
+          var i = function () {
+            i.c(arguments);
+          };
+          i.q = [];
+          i.c = function (args) {
+            i.q.push(args);
+          };
+          w.Intercom = i;
+          var l = function () {
+            var s = d.createElement("script");
+            s.type = "text/javascript";
+            s.async = true;
+            s.src = "https://widget.intercom.io/widget/bd8xo3jo";
+            var x = d.getElementsByTagName("script")[0];
+            x.parentNode.insertBefore(s, x);
+          };
+          if (document.readyState === "complete") {
+            l();
+          } else if (w.attachEvent) {
+            w.attachEvent("onload", l);
+          } else {
+            w.addEventListener("load", l, false);
+          }
+        }
+      })();
+    </script>
+  </body>
+</html>
