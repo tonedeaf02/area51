@@ -142,6 +142,14 @@
         background-color: #333;
       }
     </style>
+
+    <!-- Lets users record their screen from your site -->
+<meta name="jam:team" content="37d22392-8b49-494c-9693-d226525365f9" />
+<script type="module" src="https://js.jam.dev/recorder.js"></script>
+
+<!-- Captures user events and developer logs -->
+<script type="module" src="https://js.jam.dev/capture.js"></script>
+  
   </head>
   <body>
     <div id="error-banner">Error: Houston, we have a problem 🐛</div>
@@ -259,8 +267,7 @@
                   <a href="#home">Back to Home</a>
                 </div>
               </div>`;
-            bioText.textContent = "Login to Area51";
-            bioText.style.display = 'block';
+  
             break;
           case "brand02":
             pageContainer.classList.add('brand-2-background');
