@@ -13,17 +13,32 @@
 
     <script type="module">
       // Load cobe as a promise so initializeGlobe() can await it.
-      // The old version assigned window.createGlobe and hoped it landed before
-      // DOMContentLoaded fired, which it usually didn't.
-      window.cobeReady = import('https://cdn.skypack.dev/cobe@2.0.1')
-        .then((m) => {
-          window.createGlobe = m.default;
-          return m.default;
-        })
-        .catch((err) => {
-          console.error('cobe failed to load:', err);
-          return null;
-        });
+      //
+      // Pinned to 0.6.4 on purpose. cobe 2.0 (Mar 2026) is a full renderer
+      // rewrite: it dropped the phenomenon dependency, changed the brightness
+      // scale (mapBrightness default went 1.2 -> 6) and removed `opacity`.
+      // The unpinned URL silently jumped to 2.x, which is why the globe went
+      // black. Do not bump this without retuning the config below.
+      window.cobeReady = (async () => {
+        const sources = [
+          'https://esm.sh/cobe@0.6.4',
+          'https://cdn.jsdelivr.net/npm/cobe@0.6.4/+esm',
+          'https://cdn.skypack.dev/cobe@0.6.4',
+        ];
+        for (const url of sources) {
+          try {
+            const m = await import(url);
+            if (m.default) {
+              window.createGlobe = m.default;
+              return m.default;
+            }
+          } catch (err) {
+            console.warn('cobe failed to load from ' + url, err);
+          }
+        }
+        console.error('cobe could not be loaded from any CDN');
+        return null;
+      })();
     </script>
     <script type="module" src="https://js.jam.dev/recorder.js"></script>
     <script type="module" src="https://js.jam.dev/capture.js"></script>
